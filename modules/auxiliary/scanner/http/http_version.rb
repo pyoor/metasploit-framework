@@ -39,7 +39,7 @@ class Metasploit3 < Msf::Auxiliary
 	# Fingerprint a single host
 	def run_host(ip)
 		begin
-			fp = http_fingerprint
+			fp = http_fingerprint(:skip_lookup => true)
 			print_status("#{ip}:#{rport} #{fp}") if fp
 		rescue ::Timeout::Error, ::Errno::EPIPE
 		end
