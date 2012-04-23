@@ -226,8 +226,9 @@ connection.  For example: ActiveRecord::Base.connection.close
       #   within the timeout period.
       def checkout
         # Checkout an available connection
-        synchronize do
-          loop do
+        checkout_time = Time.now.to_i
+        loop do
+          synchronize do
             conn = @connections.find { |c| c.lease }
 
             unless conn
@@ -248,12 +249,11 @@ connection.  For example: ActiveRecord::Base.connection.close
               next
             else
               clear_stale_cached_connections!
-              if @size == active_connections.size
+              if @size == active_connections.size and (Time.now.to_i - @timeout) > checkout_time
                 raise ConnectionTimeoutError, "could not obtain a database connection#{" within #{@timeout} seconds" if @timeout}. The max pool size is currently #{@size}; consider increasing it."
               end
             end
-
-          end
+          end            
         end
       end
 
