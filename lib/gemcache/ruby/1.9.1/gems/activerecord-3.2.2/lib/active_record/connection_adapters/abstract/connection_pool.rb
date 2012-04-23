@@ -101,6 +101,11 @@ module ActiveRecord
         active_connections.any?
       end
 
+      # Check to see if there is an active thread connection
+      def active_thread_connection?(with_id = current_connection_id)
+        @reserved_connections.has_key?(with_id)
+      end
+      
       # Signal that the thread is finished with the current connection.
       # #release_connection releases the connection-thread association
       # and returns the connection to the pool.
@@ -114,7 +119,7 @@ module ActiveRecord
       # connection when finished.
       def with_connection
         connection_id = current_connection_id
-        fresh_connection = true unless active_connection?
+        fresh_connection = true unless active_thread_connection?(connection_id)
         yield connection
       ensure
         release_connection(connection_id) if fresh_connection
@@ -243,14 +248,15 @@ connection.  For example: ActiveRecord::Base.connection.close
               return conn
             end
 
-            @queue.wait(@timeout)
+            # Wait up to five seconds at a time for a yield
+            @queue.wait(5)
 
             if(active_connections.size < @connections.size)
               next
             else
               clear_stale_cached_connections!
               if @size == active_connections.size and (Time.now.to_i - @timeout) > checkout_time
-                raise ConnectionTimeoutError, "could not obtain a database connection#{" within #{@timeout} seconds" if @timeout}. The max pool size is currently #{@size}; consider increasing it."
+                raise ConnectionTimeoutError, "could not obtain a database connection#{" within #{@timeout} seconds" if @timeout}. The max pool size is currently #{@size}; consider increasing it or the wait_timeout parameter"
               end
             end
           end            
